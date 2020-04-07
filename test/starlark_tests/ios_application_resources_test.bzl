@@ -359,6 +359,18 @@ def ios_application_resources_test_suite():
         target_under_test = "//test/starlark_tests/targets_under_test/ios:app_with_fmwk",
         tags = [name],
     )
+    archive_contents_test(
+        name = "{}_with_library_defined_strings".format(name),
+        build_type = "device",
+        compilation_mode = "opt",
+        is_binary_plist = [
+            "$BUNDLE_ROOT/en.lproj/greetings.strings",
+            "$BUNDLE_ROOT/fr.lproj/localized.strings",
+            "$BUNDLE_ROOT/it.lproj/localized.strings",
+        ],
+        target_under_test = "//test/starlark_tests/targets_under_test/ios:app_with_library_defined_strings",
+        tags = [name],
+    )
 
     # Tests xcasset tool is passed the correct arguments.
     analysis_xcasset_argv_test(

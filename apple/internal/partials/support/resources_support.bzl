@@ -257,7 +257,7 @@ def _mlmodels(ctx, parent_dir, files):
         infoplists = infoplists,
     )
 
-def _plists_and_strings(ctx, parent_dir, files, force_binary = False):
+def _plists_and_strings(ctx, parent_dir, files, force_binary = False, namespace = None):
     """Processes plists and string files.
 
     If compilation mode is `opt`, or if force_binary is True, the plist files will be compiled into
@@ -270,6 +270,7 @@ def _plists_and_strings(ctx, parent_dir, files, force_binary = False):
         files: The plist or string files to process.
         force_binary: If true, files will be converted to binary independently of the compilation
             mode.
+        namespace: A suffix to add for executing the resource action.
 
     Returns:
         A struct containing a `files` field with tuples as described in processor.bzl.
@@ -286,7 +287,7 @@ def _plists_and_strings(ctx, parent_dir, files, force_binary = False):
             ctx.label.name,
             paths.join(parent_dir or "", file.basename),
         )
-        resource_actions.compile_plist(ctx, file, plist_file)
+        resource_actions.compile_plist(ctx, file, plist_file, namespace = namespace)
         plist_files.append(plist_file)
 
     return struct(

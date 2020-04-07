@@ -15,6 +15,14 @@
 """Implementation of the resource propagation aspect."""
 
 load(
+    "@build_bazel_apple_support//lib:apple_support.bzl",
+    "apple_support",
+)
+load(
+    "@build_bazel_rules_apple//apple/internal/partials/support:resources_support.bzl",
+    "resources_support",
+)
+load(
     "@build_bazel_rules_apple//apple/internal:resources.bzl",
     "resources",
 )
@@ -77,8 +85,59 @@ def _apple_resource_aspect_impl(target, ctx):
     # Collect all resource files related to this target.
     files = resources.collect(ctx.rule.attr, **collect_args)
     if files:
+        owners, unowned_resources, buckets = resources.bucketize_data(
+            files,
+            owner = owner,
+            **bucketize_args
+        )
+
+        provider_field_to_action = {
+            "plists": (resources_support.plists_and_strings, False),
+            "strings": (resources_support.plists_and_strings, False),
+        }
+
+        for bucket_name in provider_field_to_action.keys():
+            processed_field = buckets.pop(bucket_name, default = None)
+            if not processed_field:
+                continue
+            for parent_dir, swift_module, files in processed_field:
+                processing_func, requires_swift_module = provider_field_to_action[bucket_name]
+                processing_args = {
+                    "ctx": ctx,
+                    "files": files,
+                    "parent_dir": parent_dir,
+                }
+
+                # Only pass the Swift module name if the resource to process requires it.
+                if requires_swift_module:
+                    processing_args["swift_module"] = swift_module
+
+                # Execute the processing function.
+                result = processing_func(namespace = "aspect", **processing_args)
+                processed_files = {}
+                for _, processed_parent_dir, processed_file in result.files:
+                    processed_files.setdefault(
+                        processed_parent_dir if processed_parent_dir else "",
+                        default = [],
+                    ).append(processed_file)
+
+                # Save results back to the "unprocessed" field for copying in the bundling phase.
+                for processed_parent_dir, files in processed_files.items():
+                    buckets.setdefault(
+                        "unprocessed",
+                        default = [],
+                    ).append((
+                        processed_parent_dir,
+                        None,
+                        depset(transitive = files),
+                    ))
+
         providers.append(
-            resources.bucketize(files, owner = owner, **bucketize_args),
+            AppleResourceInfo(
+                owners = depset(owners),
+                unowned_resources = depset(unowned_resources),
+                **buckets
+            ),
         )
 
     # Get the providers from dependencies.
@@ -99,6 +158,10 @@ apple_resource_aspect = aspect(
     implementation = _apple_resource_aspect_impl,
     # TODO(kaipi): The aspect should also propagate through the data attribute.
     attr_aspects = ["bundles", "deps"],
+    # TODO(b/120132099): At the moment there's a collision between this and attrs used by the rules
+    # themselves. We're relying on an unshippable "namespace" to keep them semi-independent.
+    attrs = apple_support.action_required_attrs("aspect"),
+    fragments = ["apple"],
     doc = """Aspect that collects and propagates resource information to be bundled by a top-level
 bundling rule.""",
 )

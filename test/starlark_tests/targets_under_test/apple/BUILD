@@ -186,3 +186,13 @@ sh_binary(
     ],
     tags = ["requires-darwin"],
 )
+
+# ---------------------------------------------------------------------------------------
+
+objc_library(
+    name = "lib_with_strings_data",
+    srcs = ["@bazel_tools//tools/objc:dummy.c"],
+    data = [
+        "//test/starlark_tests/resources:localized_strings",
+    ],
+)

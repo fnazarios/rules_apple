@@ -93,7 +93,38 @@ def _get_attr_as_list(attr, attribute):
         return value
     return [value]
 
-def _bucketize(
+def _bucket_name_for_path(resource_path, swift_module):
+    """Return a bucket name and its swift module for the resource given a path and swift module."""
+    bucket_name = ""
+    resource_swift_module = None
+    if resource_path.endswith(".strings") or resource_path.endswith(".stringsdict"):
+        bucket_name = "strings"
+    elif resource_path.endswith(".storyboard"):
+        bucket_name = "storyboards"
+        resource_swift_module = swift_module
+    elif resource_path.endswith(".xib"):
+        bucket_name = "xibs"
+        resource_swift_module = swift_module
+    elif ".xcassets/" in resource_path or ".xcstickers/" in resource_path:
+        bucket_name = "asset_catalogs"
+    elif ".xcdatamodel" in resource_path or ".xcmappingmodel/" in resource_path:
+        bucket_name = "datamodels"
+        resource_swift_module = swift_module
+    elif ".atlas" in resource_path:
+        bucket_name = "texture_atlases"
+    elif resource_path.endswith(".png"):
+        # Process standalone pngs after asset_catalogs and texture_atlases so the latter can
+        # bucketed correctly.
+        bucket_name = "pngs"
+    elif resource_path.endswith(".plist"):
+        bucket_name = "plists"
+    elif resource_path.endswith(".mlmodel"):
+        bucket_name = "mlmodels"
+    else:
+        bucket_name = "unprocessed"
+    return (bucket_name, resource_swift_module)
+
+def _bucketize_data(
         resources,
         swift_module = None,
         owner = None,
@@ -131,7 +162,8 @@ def _bucketize(
             means all buckets are allowed.
 
     Returns:
-        A AppleResourceInfo provider with resources bucketized according to type.
+        A tuple with a list of owners, a list of "unowned" resources, and a dictionary with
+            bucketized resources organized by resource type.
     """
     buckets = {}
     owners = []
@@ -165,32 +197,11 @@ def _bucketize(
         resource_swift_module = None
         resource_depset = depset([resource])
 
-        # For each type of resource, place in appropriate bucket.
-        if resource_short_path.endswith(".strings") or resource_short_path.endswith(".stringsdict"):
-            bucket_name = "strings"
-        elif resource_short_path.endswith(".storyboard"):
-            bucket_name = "storyboards"
-            resource_swift_module = swift_module
-        elif resource_short_path.endswith(".xib"):
-            bucket_name = "xibs"
-            resource_swift_module = swift_module
-        elif ".xcassets/" in resource_short_path or ".xcstickers/" in resource_short_path:
-            bucket_name = "asset_catalogs"
-        elif ".xcdatamodel" in resource_short_path or ".xcmappingmodel/" in resource_short_path:
-            bucket_name = "datamodels"
-            resource_swift_module = swift_module
-        elif ".atlas" in resource_short_path:
-            bucket_name = "texture_atlases"
-        elif resource_short_path.endswith(".png"):
-            # Process standalone pngs after asset_catalogs and texture_atlases so the latter can
-            # bucketed correctly.
-            bucket_name = "pngs"
-        elif resource_short_path.endswith(".plist"):
-            bucket_name = "plists"
-        elif resource_short_path.endswith(".mlmodel"):
-            bucket_name = "mlmodels"
-        else:
-            bucket_name = "unprocessed"
+        # For each type of resource, place in the appropriate bucket.
+        bucket_name, resource_swift_module = _bucket_name_for_path(
+            resource_short_path,
+            swift_module,
+        )
 
         # If the allowed bucket list is not empty, and the bucket is not allowed, change the bucket
         # to unprocessed instead.
@@ -203,10 +214,29 @@ def _bucketize(
             default = [],
         ).append((parent, resource_swift_module, resource_depset))
 
+    return (
+        owners,
+        unowned_resources,
+        dict([(k, _minimize(b)) for k, b in buckets.items()]),
+    )
+
+def _bucketize(
+        resources,
+        swift_module = None,
+        owner = None,
+        parent_dir_param = None,
+        allowed_buckets = None):
+    owners, unowned_resources, buckets = _bucketize_data(
+        resources,
+        swift_module,
+        owner,
+        parent_dir_param,
+        allowed_buckets,
+    )
     return AppleResourceInfo(
         owners = depset(owners),
         unowned_resources = depset(unowned_resources),
-        **dict([(k, _minimize(b)) for k, b in buckets.items()])
+        **buckets
     )
 
 def _bucketize_typed(resources, bucket_type, owner = None, parent_dir_param = None):
@@ -475,6 +505,7 @@ def _structured_resources_parent_dir(resource, parent_dir = None):
 
 resources = struct(
     bucketize = _bucketize,
+    bucketize_data = _bucketize_data,
     bucketize_typed = _bucketize_typed,
     bundle_relative_parent_dir = _bundle_relative_parent_dir,
     collect = _collect,

@@ -139,6 +139,25 @@ ios_application(
     ],
 )
 
+ios_application(
+    name = "app_with_library_defined_strings",
+    bundle_id = "com.google.example",
+    families = ["iphone"],
+    infoplists = [
+        "//test/starlark_tests/resources:Info.plist",
+    ],
+    minimum_os_version = "8.0",
+    provisioning_profile = "//test/testdata/provisioning:integration_testing_ios.mobileprovision",
+    tags = [
+        "manual",
+        "notap",
+    ],
+    deps = [
+        "//test/starlark_tests/resources:objc_main_lib",
+        "//test/starlark_tests/targets_under_test/apple:lib_with_strings_data",
+    ],
+)
+
 # ---------------------------------------------------------------------------------------
 
 ios_application(

@@ -70,13 +70,14 @@ def plisttool_action(ctx, inputs, outputs, control_file, mnemonic = None):
         mnemonic = mnemonic,
     )
 
-def compile_plist(ctx, input_file, output_file):
+def compile_plist(ctx, input_file, output_file, namespace = None):
     """Creates an action that compiles plist and strings files.
 
     Args:
       ctx: The Skylark context.
       input_file: The property list file that should be converted.
       output_file: The file reference for the output plist.
+      namespace: A suffix to add for executing the resource action.
     """
     if input_file.basename.endswith(".strings"):
         mnemonic = "CompileStrings"
@@ -101,6 +102,7 @@ def compile_plist(ctx, input_file, output_file):
         outputs = [output_file],
         command = complete_command,
         mnemonic = mnemonic,
+        namespace = namespace,
     )
 
 def merge_resource_infoplists(ctx, bundle_name, input_files, output_plist):
