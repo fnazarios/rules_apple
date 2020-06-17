@@ -117,11 +117,11 @@ def _actool_args_for_special_file_types(ctx, asset_files):
             [appicon_extension],
             attr = "app_icons",
         ).keys()
-        if len(icon_dirs) != 1:
-            formatted_dirs = "[\n  %s\n]" % ",\n  ".join(icon_dirs)
-            fail("The asset catalogs should contain exactly one directory named " +
-                 "*.%s among its asset catalogs, " % appicon_extension +
-                 "but found the following: " + formatted_dirs, "app_icons")
+        # if len(icon_dirs) != 1:
+        #     formatted_dirs = "[\n  %s\n]" % ",\n  ".join(icon_dirs)
+        #     fail("The asset catalogs should contain exactly one directory named " +
+        #          "*.%s among its asset catalogs, " % appicon_extension +
+        #          "but found the following: " + formatted_dirs, "app_icons")
 
         app_icon_name = paths.split_extension(paths.basename(icon_dirs[0]))[0]
         args += ["--app-icon", app_icon_name]
